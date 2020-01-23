@@ -126,20 +126,31 @@ class Bundle
 			@resolver(e)
 
 
+let plugins
+let serve-confs
+if cfg.serve
+	for own conf, val of cfg.serve
+		serve-confs ||= {}
+		serve-confs[conf] = val
+
 for entry in cfg.entries
 	entry = resolvePaths(entry)
 	let target = entry.target or 'web'
-	let plugins = (entry.plugins ||= [])
+	plugins = (entry.plugins ||= [])
 	plugins.unshift(commonjs-plugin())
 	plugins.unshift(resolve-plugin(extensions: ['.imba', '.mjs','.js','.cjs','.json']))
 	plugins.unshift(imba-plugin(target: target))
 
 	if options.serve and target == 'web'
 		let pubdir = path.dirname(entry.output.file)
-		plugins.push(serve-plugin({contentBase: pubdir,historyApiFallback: true}))
+		serve-confs ||= {}
+		serve-confs['contentBase'] = pubdir
+		serve-confs['historyApiFallback'] = true
 		if options.hmr
 			plugins.push(hmr-plugin(pubdir))
 	bundles.push(Bundle.new(entry))
+
+plugins.push(serve-plugin(serve-confs)) if serve-confs
 
 def run
 	var bundlers = await Promise.all(bundles.map(do $1.start() ))
